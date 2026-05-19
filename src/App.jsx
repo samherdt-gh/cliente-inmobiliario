@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import './App.css'
 
+const supabase = createClient(
+  'https://kbwihyhqiwcsoscgrsmx.supabase.co',
+  'sb_publishable_1eY8BaKJp87W5evy9fw_9Q_hQ5jKru9'
+)
+
 function App() {
-  const [clients, setClients] = useState(() => {
-    const saved = localStorage.getItem('clients')
-    return saved ? JSON.parse(saved) : []
-  })
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
   const [view, setView] = useState('list')
   const [search, setSearch] = useState('')
   const [editingClient, setEditingClient] = useState(null)
@@ -14,29 +18,64 @@ function App() {
     phone: '',
     email: '',
     interest: 'compra',
-    propertyType: '',
+    property_type: '',
     budget: '',
     source: 'web',
-    notes: ''
+    notes: '',
+    status: 'nuevo'
   })
 
   useEffect(() => {
-    localStorage.setItem('clients', JSON.stringify(clients))
-  }, [clients])
+    fetchClients()
+  }, [])
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const newClient = {
-      ...formData,
-      id: editingClient ? editingClient.id : Date.now(),
-      createdAt: editingClient ? editingClient.createdAt : new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+  async function fetchClients() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false })
     
-    if (editingClient) {
-      setClients(clients.map(c => c.id === editingClient.id ? newClient : c))
+    if (error) {
+      console.error('Error fetching:', error)
     } else {
-      setClients([newClient, ...clients])
+      setClients(data || [])
+    }
+    setLoading(false)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    
+    const clientData = {
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email || null,
+      interest: formData.interest,
+      property_type: formData.property_type || null,
+      budget: formData.budget || null,
+      source: formData.source,
+      notes: formData.notes || null,
+      status: formData.status || 'nuevo'
+    }
+
+    if (editingClient) {
+      const { error } = await supabase
+        .from('clients')
+        .update({ ...clientData, updated_at: new Date().toISOString() })
+        .eq('id', editingClient.id)
+      
+      if (!error) {
+        fetchClients()
+      }
+    } else {
+      const { error } = await supabase
+        .from('clients')
+        .insert([clientData])
+      
+      if (!error) {
+        fetchClients()
+      }
     }
     
     setFormData({
@@ -44,35 +83,53 @@ function App() {
       phone: '',
       email: '',
       interest: 'compra',
-      propertyType: '',
+      property_type: '',
       budget: '',
       source: 'web',
-      notes: ''
+      notes: '',
+      status: 'nuevo'
     })
     setEditingClient(null)
     setView('list')
   }
 
-  const deleteClient = (id) => {
+  async function deleteClient(id) {
     if (confirm('¿Eliminar cliente?')) {
-      setClients(clients.filter(c => c.id !== id))
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', id)
+      
+      if (!error) {
+        fetchClients()
+      }
     }
   }
 
-  const editClient = (client) => {
+  function editClient(client) {
     setEditingClient(client)
-    setFormData(client)
+    setFormData({
+      name: client.name,
+      phone: client.phone,
+      email: client.email || '',
+      interest: client.interest || 'compra',
+      property_type: client.property_type || '',
+      budget: client.budget || '',
+      source: client.source || 'web',
+      notes: client.notes || '',
+      status: client.status || 'nuevo'
+    })
     setView('add')
   }
 
-  const getInitials = (name) => {
+  function getInitials(name) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)
   }
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.phone.includes(search) ||
-    c.email?.toLowerCase().includes(search.toLowerCase())
+    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
   )
 
   const stats = {
@@ -86,6 +143,14 @@ function App() {
     compra: 'Compra',
     venta: 'Venta',
     tasacion: 'Tasación'
+  }
+
+  if (loading) {
+    return (
+      <div className="app">
+        <div className="loading">Cargando...</div>
+      </div>
+    )
   }
 
   return (
@@ -129,10 +194,11 @@ function App() {
             phone: '',
             email: '',
             interest: 'compra',
-            propertyType: '',
+            property_type: '',
             budget: '',
             source: 'web',
-            notes: ''
+            notes: '',
+            status: 'nuevo'
           })}}
         >
           Nuevo Cliente
@@ -168,9 +234,9 @@ function App() {
                       <p className="client-contact">{client.phone} {client.email && `• ${client.email}`}</p>
                       <div className="client-meta">
                         <span className={`tag ${client.interest}`}>
-                          {interestLabels[client.interest]}
+                          {interestLabels[client.interest] || client.interest}
                         </span>
-                        {client.propertyType && <span className="tag">{client.propertyType}</span>}
+                        {client.property_type && <span className="tag">{client.property_type}</span>}
                         {client.budget && <span className="tag">💰 {client.budget}</span>}
                       </div>
                       {client.notes && <p style={{marginTop: 12, fontSize: 13, color: '#6b7280'}}>{client.notes}</p>}
@@ -241,8 +307,8 @@ function App() {
               <div className="form-group">
                 <label>Tipo de propiedad</label>
                 <select 
-                  value={formData.propertyType}
-                  onChange={(e) => setFormData({...formData, propertyType: e.target.value})}
+                  value={formData.property_type}
+                  onChange={(e) => setFormData({...formData, property_type: e.target.value})}
                 >
                   <option value="">Seleccionar...</option>
                   <option value="departamento">🏢 Departamento</option>
