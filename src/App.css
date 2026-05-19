@@ -524,3 +524,136 @@ body {
     justify-content: center;
   }
 }
+
+/* Pipeline */
+.pipeline {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.pipeline-column {
+  min-width: 200px;
+  flex: 1;
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.pipeline-header {
+  padding: 16px;
+  border-bottom: 2px solid;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pipeline-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.pipeline-count {
+  background: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pipeline-cards {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 200px;
+}
+
+.pipeline-card {
+  background: var(--primary-light);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.pipeline-card:hover {
+  border-color: var(--accent);
+}
+
+.pipeline-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.client-avatar-small {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-gradient);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.pipeline-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.pipeline-card-phone {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pipeline-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pipeline-card-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.status-select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btn-icon {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-icon.delete {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.pipeline-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}

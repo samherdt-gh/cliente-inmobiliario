@@ -7,11 +7,20 @@ const supabaseKey = 'sb_publishable_1eY8BaKJp87W5evy9fw_9Q_hQ5jKru9'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+const stages = [
+  { id: 'nuevo', label: 'Nuevo', color: '#6366f1' },
+  { id: 'contactado', label: 'Contactado', color: '#8b5cf6' },
+  { id: 'seguimiento', label: 'Seguimiento', color: '#f59e0b' },
+  { id: 'negociacion', label: 'Negociación', color: '#ec4899' },
+  { id: 'cerrado', label: 'Cerrado', color: '#10b981' },
+  { id: 'perdido', label: 'Perdido', color: '#ef4444' }
+]
+
 function App() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [view, setView] = useState('list')
+  const [view, setView] = useState('pipeline')
   const [search, setSearch] = useState('')
   const [editingClient, setEditingClient] = useState(null)
   const [formData, setFormData] = useState({
@@ -45,6 +54,17 @@ function App() {
       setClients(data || [])
     }
     setLoading(false)
+  }
+
+  async function updateClientStatus(clientId, newStatus) {
+    const { error } = await supabase
+      .from('clients')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', clientId)
+    
+    if (!error) {
+      fetchClients()
+    }
   }
 
   async function handleSubmit(e) {
@@ -96,7 +116,7 @@ function App() {
       status: 'nuevo'
     })
     setEditingClient(null)
-    setView('list')
+    setView('pipeline')
     fetchClients()
   }
 
@@ -139,11 +159,16 @@ function App() {
     (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
   )
 
+  const getClientsByStage = (stageId) => {
+    return filteredClients.filter(c => (c.status || 'nuevo') === stageId)
+  }
+
   const stats = {
     total: clients.length,
     compra: clients.filter(c => c.interest === 'compra').length,
     venta: clients.filter(c => c.interest === 'venta').length,
-    tasacion: clients.filter(c => c.interest === 'tasacion').length
+    tasacion: clients.filter(c => c.interest === 'tasacion').length,
+    cerrado: clients.filter(c => c.status === 'cerrado').length
   }
 
   const interestLabels = {
@@ -180,8 +205,8 @@ function App() {
               <span className="stat-label">Venta</span>
             </div>
             <div className="stat">
-              <span className="stat-value">{stats.tasacion}</span>
-              <span className="stat-label">Tasación</span>
+              <span className="stat-value">{stats.cerrado}</span>
+              <span className="stat-label">Cerrados</span>
             </div>
           </div>
         </div>
@@ -195,10 +220,10 @@ function App() {
 
       <div className="tabs">
         <button 
-          className={`tab ${view === 'list' ? 'active' : ''}`}
-          onClick={() => setView('list')}
+          className={`tab ${view === 'pipeline' ? 'active' : ''}`}
+          onClick={() => setView('pipeline')}
         >
-          Clientes ({clients.length})
+          📊 Pipeline ({clients.length})
         </button>
         <button 
           className={`tab ${view === 'add' ? 'active' : ''}`}
@@ -214,54 +239,66 @@ function App() {
             status: 'nuevo'
           })}}
         >
-          Nuevo Cliente
+          + Nuevo
         </button>
       </div>
 
-      {view === 'list' && (
+      {view === 'pipeline' && (
         <>
           <div className="search-bar">
             <input 
               type="text" 
-              placeholder="Buscar por nombre, teléfono o email..."
+              placeholder="Buscar cliente..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="client-list">
-            {filteredClients.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">👥</div>
-                <div className="empty-title">{search ? 'Sin resultados' : 'No hay clientes aún'}</div>
-                <div className="empty-text">{search ? 'Probá con otros términos' : 'Agregá tu primer cliente'}</div>
-              </div>
-            ) : (
-              filteredClients.map(client => (
-                <div key={client.id} className="client-card">
-                  <div style={{display: 'flex', alignItems: 'flex-start'}}>
-                    <div className="client-avatar">
-                      {getInitials(client.name)}
-                    </div>
-                    <div className="client-info">
-                      <h3>{client.name}</h3>
-                      <p className="client-contact">{client.phone} {client.email && `• ${client.email}`}</p>
-                      <div className="client-meta">
+          <div className="pipeline">
+            {stages.map(stage => (
+              <div key={stage.id} className="pipeline-column">
+                <div className="pipeline-header" style={{borderColor: stage.color}}>
+                  <span className="pipeline-title" style={{color: stage.color}}>{stage.label}</span>
+                  <span className="pipeline-count">{getClientsByStage(stage.id).length}</span>
+                </div>
+                <div className="pipeline-cards">
+                  {getClientsByStage(stage.id).map(client => (
+                    <div key={client.id} className="pipeline-card">
+                      <div className="pipeline-card-header">
+                        <div className="client-avatar-small">
+                          {getInitials(client.name)}
+                        </div>
+                        <div>
+                          <div className="pipeline-card-name">{client.name}</div>
+                          <div className="pipeline-card-phone">{client.phone}</div>
+                        </div>
+                      </div>
+                      <div className="pipeline-card-meta">
                         <span className={`tag ${client.interest}`}>
                           {interestLabels[client.interest] || client.interest}
                         </span>
                         {client.property_type && <span className="tag">{client.property_type}</span>}
-                        {client.budget && <span className="tag">💰 {client.budget}</span>}
                       </div>
-                      {client.notes && <p style={{marginTop: 12, fontSize: 13, color: '#6b7280'}}>{client.notes}</p>}
+                      <div className="pipeline-card-actions">
+                        <select 
+                          value={client.status || 'nuevo'}
+                          onChange={(e) => updateClientStatus(client.id, e.target.value)}
+                          className="status-select"
+                        >
+                          {stages.map(s => (
+                            <option key={s.id} value={s.id}>{s.label}</option>
+                          ))}
+                        </select>
+                        <button className="btn-icon" onClick={() => editClient(client)}>✏️</button>
+                        <button className="btn-icon delete" onClick={() => deleteClient(client.id)}>🗑️</button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="client-actions">
-                    <button className="btn btn-sm btn-edit" onClick={() => editClient(client)}>✏️ Editar</button>
-                    <button className="btn btn-sm btn-delete" onClick={() => deleteClient(client.id)}>🗑️</button>
-                  </div>
+                  ))}
+                  {getClientsByStage(stage.id).length === 0 && (
+                    <div className="pipeline-empty">Sin clientes</div>
+                  )}
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -361,10 +398,9 @@ function App() {
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
                 >
-                  <option value="nuevo">🆕 Nuevo</option>
-                  <option value="contactado">✅ Contactado</option>
-                  <option value="seguimiento">⏰ Seguimiento</option>
-                  <option value="cerrado">🎉 Cerrado</option>
+                  {stages.map(s => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group full-width">
@@ -380,7 +416,7 @@ function App() {
               <button type="submit" className="btn btn-primary">
                 {editingClient ? '✓ Guardar Cambios' : '+ Agregar Cliente'}
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setView('list')}>
+              <button type="button" className="btn btn-secondary" onClick={() => setView('pipeline')}>
                 Cancelar
               </button>
             </div>
