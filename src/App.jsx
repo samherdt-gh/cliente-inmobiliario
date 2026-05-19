@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import './App.css'
 
-const supabase = createClient(
-  'https://kbwihyhqiwcsoscgrsmx.supabase.co',
-  'sb_publishable_1eY8BaKJp87W5evy9fw_9Q_hQ5jKru9'
-)
+const supabaseUrl = 'https://kbwihyhqiwcsoscgrsmx.supabase.co'
+const supabaseKey = 'sb_publishable_1eY8BaKJp87W5evy9fw_9Q_hQ5jKru9'
+
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 function App() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [view, setView] = useState('list')
   const [search, setSearch] = useState('')
   const [editingClient, setEditingClient] = useState(null)
@@ -31,6 +32,7 @@ function App() {
 
   async function fetchClients() {
     setLoading(true)
+    setError(null)
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -38,6 +40,7 @@ function App() {
     
     if (error) {
       console.error('Error fetching:', error)
+      setError(error.message)
     } else {
       setClients(data || [])
     }
@@ -46,6 +49,7 @@ function App() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setError(null)
     
     const clientData = {
       name: formData.name,
@@ -65,16 +69,18 @@ function App() {
         .update({ ...clientData, updated_at: new Date().toISOString() })
         .eq('id', editingClient.id)
       
-      if (!error) {
-        fetchClients()
+      if (error) {
+        setError(error.message)
+        return
       }
     } else {
       const { error } = await supabase
         .from('clients')
         .insert([clientData])
       
-      if (!error) {
-        fetchClients()
+      if (error) {
+        setError(error.message)
+        return
       }
     }
     
@@ -91,6 +97,7 @@ function App() {
     })
     setEditingClient(null)
     setView('list')
+    fetchClients()
   }
 
   async function deleteClient(id) {
@@ -179,6 +186,12 @@ function App() {
           </div>
         </div>
       </div>
+
+      {error && (
+        <div style={{background: '#fee2e2', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px'}}>
+          Error: {error}
+        </div>
+      )}
 
       <div className="tabs">
         <button 
